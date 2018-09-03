@@ -1,3 +1,5 @@
 venv
 .idea
 *.html
+src/__pycache__
+src/spiders/__pycache__
