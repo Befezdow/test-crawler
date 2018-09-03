@@ -1,20 +1,21 @@
 import scrapy
+from functools import reduce
 
 
 class QuotesSpider(scrapy.Spider):
     name = "quotes"
-
-    def start_requests(self):
-        urls = [
-            'http://quotes.toscrape.com/page/1/',
-            'http://quotes.toscrape.com/page/2/',
-        ]
-        for url in urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+    start_urls = [
+        'https://citaty.info/category/zhiznennye-citaty',
+    ]
 
     def parse(self, response):
-        page = response.url.split("/")[-2]
-        filename = 'quotes-%s.html' % page
-        with open(filename, 'wb') as f:
-            f.write(response.body)
-        self.log('Saved file %s' % filename)
+        for quote in response.css('div.view-content div.quotes-row'):
+            yield {
+                'text': reduce((lambda x, y: '%s %s' % (x, y)), quote.xpath('.//p//text()').extract()).replace('\xa0', ' ').replace('  ', ' '),
+                'sources': quote.xpath(".//div[contains(@class, 'node__content')]/div[contains(@class, 'field-type-taxonomy-term-reference')]//text()").extract(),
+                'tags': quote.xpath(".//div[contains(@class, 'node__topics')]//div[contains(@class, 'field-item')]//text()").extract()
+            }
+
+        next_page = response.css('li.pager-next a::attr(href)').extract_first()
+        if next_page is not None:
+            yield response.follow(next_page, callback=self.parse)
